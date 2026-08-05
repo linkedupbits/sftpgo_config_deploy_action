@@ -1,0 +1,17 @@
+{
+  "name": "SFTPGo Config Action Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["orta.vscode-jest"],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  },
+  "postCreateCommand": "npm ci",
+  "remoteUser": "node"
+}

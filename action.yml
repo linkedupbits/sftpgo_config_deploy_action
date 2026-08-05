@@ -1,0 +1,54 @@
+name: 'SFTPGo Config Deploy'
+description: 'Deploy SFTPGo Virtual Folders and Groups defined as YAML in a project directory to a target SFTPGo server via its REST API.'
+author: 'linkedupbits'
+branding:
+  icon: 'upload-cloud'
+  color: 'blue'
+
+inputs:
+  server-url:
+    description: 'Base URL of the target SFTPGo server, e.g. https://sftpgo.example.com'
+    required: true
+  authentication-method:
+    description: "Authentication method to use: 'username-password' or 'api-key'."
+    required: true
+  username:
+    description: 'SFTPGo admin username. Required when authentication-method is username-password.'
+    required: false
+  password:
+    description: 'SFTPGo admin password. Required when authentication-method is username-password.'
+    required: false
+  api-key:
+    description: 'SFTPGo API key. Required when authentication-method is api-key.'
+    required: false
+  project-path:
+    description: 'Path to the project directory containing VirtualFolders/ and Groups/ subfolders of YAML artifact definitions. Resolved relative to the workflow workspace.'
+    required: true
+  retain-extra-artifacts:
+    description: 'If true, artifacts that exist on the server but are not defined in the project are left untouched. If false, they are deleted.'
+    required: false
+    default: 'true'
+  simulate:
+    description: 'If true, print the plan of changes without applying anything to the target server.'
+    required: false
+    default: 'true'
+
+outputs:
+  simulated:
+    description: 'Whether the run was a simulation (no changes applied).'
+  folders-created:
+    description: 'Number of Virtual Folders created (or that would be created, in simulate mode).'
+  folders-updated:
+    description: 'Number of Virtual Folders updated (or that would be updated, in simulate mode).'
+  folders-deleted:
+    description: 'Number of Virtual Folders deleted (or that would be deleted, in simulate mode).'
+  groups-created:
+    description: 'Number of Groups created (or that would be created, in simulate mode).'
+  groups-updated:
+    description: 'Number of Groups updated (or that would be updated, in simulate mode).'
+  groups-deleted:
+    description: 'Number of Groups deleted (or that would be deleted, in simulate mode).'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
