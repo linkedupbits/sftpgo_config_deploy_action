@@ -37,6 +37,17 @@ user_settings:
     provider: 0
 ```
 
+### Server-managed fields
+
+Some fields are read-only or computed by SFTPGo itself, so this action strips them from each artifact before comparing or deploying — set them and they're silently ignored, whether the file is hand-written or exported straight from the server:
+
+| Kind             | Excluded fields                                              |
+|------------------|----------------------------------------------------------------|
+| Virtual Folder   | `id`, `used_quota_size`, `used_quota_files`, `last_quota_update`, `users` |
+| Group            | `id`, `created_at`, `updated_at`, `users`, `admins`             |
+
+In particular, `users` on both kinds reflects the folder/group *membership* — computed from each user's own config — not something settable on the folder or group itself. Editing it in YAML and syncing has no effect: existing memberships are left exactly as they are on the server.
+
 ## Inputs
 
 | Input                     | Required | Default | Description                                                                                     |
