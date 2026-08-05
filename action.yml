@@ -50,5 +50,5 @@ outputs:
     description: 'Number of Groups deleted (or that would be deleted, in simulate mode).'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
