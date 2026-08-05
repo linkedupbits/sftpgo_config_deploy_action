@@ -32,4 +32,5 @@ export interface ActionInputs {
   projectPath: string;
   retainExtraArtifacts: boolean;
   simulate: boolean;
+  writeSummary: boolean;
 }

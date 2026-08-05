@@ -17,6 +17,8 @@ const baseValues = {
   'project-path': 'config',
 };
 
+const baseBooleans = { 'retain-extra-artifacts': true, simulate: true, 'write-summary': true };
+
 describe('getActionInputs', () => {
   const originalWorkspace = process.env.GITHUB_WORKSPACE;
 
@@ -29,7 +31,7 @@ describe('getActionInputs', () => {
     const setSecret = jest.fn();
     const inputs = getActionInputs(
       fakeGetInput(baseValues),
-      fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+      fakeGetBooleanInput(baseBooleans),
       setSecret,
     );
 
@@ -38,6 +40,7 @@ describe('getActionInputs', () => {
     expect(inputs.projectPath).toBe(path.resolve('/workspace', 'config'));
     expect(inputs.retainExtraArtifacts).toBe(true);
     expect(inputs.simulate).toBe(true);
+    expect(inputs.writeSummary).toBe(true);
     expect(setSecret).toHaveBeenCalledWith('hunter2');
   });
 
@@ -45,18 +48,19 @@ describe('getActionInputs', () => {
     const setSecret = jest.fn();
     const inputs = getActionInputs(
       fakeGetInput({ ...baseValues, 'authentication-method': 'api-key', 'api-key': 'the-key', username: '', password: '' }),
-      fakeGetBooleanInput({ 'retain-extra-artifacts': false, simulate: false }),
+      fakeGetBooleanInput({ 'retain-extra-artifacts': false, simulate: false, 'write-summary': false }),
       setSecret,
     );
 
     expect(inputs.auth).toEqual({ method: 'api-key', apiKey: 'the-key' });
+    expect(inputs.writeSummary).toBe(false);
     expect(setSecret).toHaveBeenCalledWith('the-key');
   });
 
   it('resolves an absolute project-path as-is', () => {
     const inputs = getActionInputs(
       fakeGetInput({ ...baseValues, 'project-path': '/abs/config' }),
-      fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+      fakeGetBooleanInput(baseBooleans),
       jest.fn(),
     );
     expect(inputs.projectPath).toBe('/abs/config');
@@ -66,7 +70,7 @@ describe('getActionInputs', () => {
     expect(() =>
       getActionInputs(
         fakeGetInput({ ...baseValues, 'authentication-method': 'oauth' }),
-        fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+        fakeGetBooleanInput(baseBooleans),
         jest.fn(),
       ),
     ).toThrow(InputValidationError);
@@ -76,7 +80,7 @@ describe('getActionInputs', () => {
     expect(() =>
       getActionInputs(
         fakeGetInput({ ...baseValues, username: '' }),
-        fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+        fakeGetBooleanInput(baseBooleans),
         jest.fn(),
       ),
     ).toThrow(/'username' is required/);
@@ -84,7 +88,7 @@ describe('getActionInputs', () => {
     expect(() =>
       getActionInputs(
         fakeGetInput({ ...baseValues, password: '' }),
-        fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+        fakeGetBooleanInput(baseBooleans),
         jest.fn(),
       ),
     ).toThrow(/'password' is required/);
@@ -94,7 +98,7 @@ describe('getActionInputs', () => {
     expect(() =>
       getActionInputs(
         fakeGetInput({ ...baseValues, 'authentication-method': 'api-key' }),
-        fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+        fakeGetBooleanInput(baseBooleans),
         jest.fn(),
       ),
     ).toThrow(/'api-key' is required/);
@@ -104,7 +108,7 @@ describe('getActionInputs', () => {
     expect(() =>
       getActionInputs(
         fakeGetInput({ ...baseValues, 'server-url': '' }),
-        fakeGetBooleanInput({ 'retain-extra-artifacts': true, simulate: true }),
+        fakeGetBooleanInput(baseBooleans),
         jest.fn(),
       ),
     ).toThrow(/'server-url' is required/);

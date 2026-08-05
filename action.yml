@@ -32,6 +32,10 @@ inputs:
     description: 'If true, print the plan of changes without applying anything to the target server.'
     required: false
     default: 'true'
+  write-summary:
+    description: 'If true, write a markdown table of planned/applied changes to the GitHub Actions job summary.'
+    required: false
+    default: 'true'
 
 outputs:
   simulated:

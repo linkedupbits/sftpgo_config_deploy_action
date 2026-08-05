@@ -65,6 +65,7 @@ export function getActionInputs(
 
   const retainExtraArtifacts = getBooleanInput('retain-extra-artifacts');
   const simulate = getBooleanInput('simulate');
+  const writeSummary = getBooleanInput('write-summary');
 
-  return { serverUrl, auth, projectPath, retainExtraArtifacts, simulate };
+  return { serverUrl, auth, projectPath, retainExtraArtifacts, simulate, writeSummary };
 }

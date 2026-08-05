@@ -49,6 +49,7 @@ user_settings:
 | `project-path`             | yes      |         | Path to the directory containing `VirtualFolders/` and `Groups/`, resolved relative to the workflow workspace |
 | `retain-extra-artifacts`   | no       | `true`  | If `true`, artifacts on the server that aren't in the project are left alone. If `false`, they're deleted. |
 | `simulate`                 | no       | `true`  | If `true`, only prints the plan — no changes are applied.                                        |
+| `write-summary`            | no       | `true`  | If `true`, writes a markdown table of planned/applied changes to the GitHub Actions job summary.  |
 
 ## Outputs
 
@@ -66,7 +67,7 @@ user_settings:
 
 ### Simulate a deploy on every pull request
 
-Review the plan in the workflow log before it's ever applied.
+Review the plan in the workflow log before it's ever applied. `write-summary` defaults to `true`, so the plan also appears as a markdown table on the workflow run's summary page — reviewers can see exactly what would change without opening the logs.
 
 ```yaml
 name: Preview SFTPGo config changes

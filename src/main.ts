@@ -4,6 +4,7 @@ import { deploy, DeployCounts } from './deploy';
 import { getActionInputs } from './inputs';
 import { buildPlan } from './plan';
 import { SftpgoClient } from './sftpgoClient';
+import { buildSummaryMarkdown } from './summary';
 
 function setOutputs(counts: DeployCounts, simulated: boolean): void {
   core.setOutput('simulated', String(simulated));
@@ -35,6 +36,10 @@ export async function run(): Promise<void> {
 
     const result = await deploy(client, plans, inputs.simulate, core);
     setOutputs(result.counts, result.simulated);
+
+    if (inputs.writeSummary) {
+      await core.summary.addRaw(buildSummaryMarkdown(plans, result)).write();
+    }
 
     if (result.errors.length > 0) {
       core.setFailed(`${result.errors.length} artifact(s) failed to deploy:\n${result.errors.join('\n')}`);
