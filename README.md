@@ -172,3 +172,32 @@ npm run typecheck
 npm test
 npm run build   # bundles src/ into dist/index.js via ncc; commit the result
 ```
+
+## Releasing
+
+Consumers reference this action by tag (`uses: linkedupbits/sftpgo_config_deploy_action@v1`), so releasing means tagging a commit — there's no package to publish. Each release needs an immutable version tag plus a moving major tag that consumers pin to:
+
+```bash
+git tag -a v1.0.0 -m "v1.0.0"
+git tag -f v1                # moving major tag, points at the same commit
+git push origin main
+git push origin v1.0.0
+git push origin v1 --force   # --force only needed when re-pointing an existing v1 tag
+```
+
+Then create a GitHub Release from the tag, either via `gh`:
+
+```bash
+gh release create v1.0.0 --title "v1.0.0" --notes "..."
+```
+
+or via the GitHub UI: **Releases → Draft a new release → choose tag `v1.0.0` → Publish**.
+
+For subsequent releases (e.g. `v1.1.0`), tag as above, then re-point the major tag and force-push it so everyone pinned to `@v1` picks up the change automatically:
+
+```bash
+git tag -f v1 v1.1.0
+git push origin v1 --force
+```
+
+Before tagging, make sure `dist/` is committed and in sync with `src/` (`npm run build`, then check `git status`) — the CI workflow enforces this on every push and PR, but it's worth double-checking on a release commit specifically since that's what consumers actually run.
