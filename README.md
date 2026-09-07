@@ -185,6 +185,17 @@ npm test
 npm run build   # bundles src/ into dist/index.js via ncc; commit the result
 ```
 
+### Debugging interactively in VS Code
+
+`dist/index.js` is what actually runs in a workflow, but for local debugging it's easier to run `src/main.ts` directly with breakpoints, using `ts-node` so there's no separate compile step. A ready-made launch config is checked in at [.vscode/launch.json](.vscode/launch.json) — **Run and Debug → "Debug action (src/main.ts)"**.
+
+Since there's no GitHub Actions runner locally, the action's inputs have to be supplied as environment variables the way the runner would set them: `@actions/core`'s `getInput()`/`getBooleanInput()` read `INPUT_<NAME>`, with the input name uppercased and spaces (not hyphens) turned into underscores — e.g. `server-url` becomes `INPUT_SERVER-URL`. Edit the `env` block in `launch.json` to point at a real (or test) SFTPGo server and a local `project-path` directory laid out as shown in [Project layout](#project-layout). `GITHUB_WORKSPACE` is set to `${workspaceFolder}` so a relative `project-path` resolves against the repo root, same as in a real workflow.
+
+A couple of things worth knowing:
+- Leave `simulate: true` (the default) unless you specifically want to debug against a real server making real changes.
+- `write-summary` is set to `false` in the checked-in config to skip the job-summary write entirely; flip it to `true` only if you also create the `.debug/` directory the config points `GITHUB_STEP_SUMMARY` at (it's gitignored, and `core.summary` doesn't create parent directories itself).
+- Nothing is mocked here — `SftpgoClient` uses the real `fetch`, so this is genuinely useful for reproducing environment-specific issues (like the 401s discussed above) with breakpoints in `sftpgoClient.ts`, against the actual server that's misbehaving.
+
 ## Releasing
 
 Consumers reference this action by tag (`uses: linkedupbits/sftpgo_config_deploy_action@v1`), so releasing means tagging a commit — there's no package to publish. Each release needs an immutable version tag plus a moving major tag that consumers pin to:
