@@ -55,6 +55,33 @@ describe('SftpgoClient', () => {
       await expect(client.authenticate()).rejects.toThrow(SftpgoApiError);
       await expect(client.authenticate()).rejects.toThrow(/invalid credentials/);
     });
+
+    it('throws SftpgoApiError when the token response has no access_token field', async () => {
+      const fetchFn = jest.fn().mockResolvedValueOnce(jsonResponse({ expires_at: '2099-01-01T00:00:00Z' }));
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+
+      const err = await client.authenticate().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(SftpgoApiError);
+      expect((err as Error).message).toMatch(/did not include a usable 'access_token'/);
+    });
+
+    it('throws SftpgoApiError when access_token is present but empty or the wrong type', async () => {
+      const fetchFn = jest.fn().mockResolvedValueOnce(jsonResponse({ access_token: '' }));
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+
+      await expect(client.authenticate()).rejects.toThrow(/did not include a usable 'access_token'/);
+    });
+
+    it('throws SftpgoApiError with a body snippet when the token response is not JSON', async () => {
+      const fetchFn = jest
+        .fn()
+        .mockResolvedValueOnce(new Response('<html>not json</html>', { status: 200 }));
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+
+      const err = await client.authenticate().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(SftpgoApiError);
+      expect((err as Error).message).toMatch(/was not valid JSON/);
+    });
   });
 
   describe('401 re-authentication', () => {

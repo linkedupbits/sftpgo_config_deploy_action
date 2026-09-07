@@ -50,8 +50,22 @@ export class SftpgoClient {
     if (!response.ok) {
       throw new SftpgoApiError(response.status, '/token', await extractErrorMessage(response));
     }
-    const body = (await response.json()) as { access_token: string };
-    this.token = body.access_token;
+    const text = await response.text();
+    let parsed: unknown;
+    try {
+      parsed = text ? JSON.parse(text) : undefined;
+    } catch {
+      throw new SftpgoApiError(response.status, '/token', `response was not valid JSON: ${text.slice(0, 200)}`);
+    }
+    const accessToken = (parsed as { access_token?: unknown } | undefined)?.access_token;
+    if (typeof accessToken !== 'string' || accessToken.length === 0) {
+      throw new SftpgoApiError(
+        response.status,
+        '/token',
+        `response did not include a usable 'access_token' field: ${text.slice(0, 200)}`,
+      );
+    }
+    this.token = accessToken;
   }
 
   private authHeader(): Record<string, string> {
