@@ -3,6 +3,11 @@ import { AuthConfig, LocalArtifact, RemoteArtifact } from './types';
 export type FetchFn = typeof fetch;
 
 const LIST_PAGE_LIMIT = 500;
+const REAUTH_RETRY_DELAY_MS = 300;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export class SftpgoApiError extends Error {
   constructor(
@@ -59,7 +64,12 @@ export class SftpgoClient {
     return { Authorization: `Bearer ${this.token}` };
   }
 
-  private async request<T>(method: string, urlPath: string, body?: unknown): Promise<T | undefined> {
+  private async request<T>(
+    method: string,
+    urlPath: string,
+    body?: unknown,
+    allowReauth = true,
+  ): Promise<T | undefined> {
     const response = await this.fetchFn(`${this.serverUrl}/api/v2${urlPath}`, {
       method,
       headers: {
@@ -68,6 +78,12 @@ export class SftpgoClient {
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
+
+    if (response.status === 401 && allowReauth && this.auth.method === 'username-password') {
+      await this.authenticate();
+      await delay(REAUTH_RETRY_DELAY_MS);
+      return this.request<T>(method, urlPath, body, false);
+    }
 
     if (!response.ok) {
       throw new SftpgoApiError(response.status, urlPath, await extractErrorMessage(response));

@@ -57,6 +57,63 @@ describe('SftpgoClient', () => {
     });
   });
 
+  describe('401 re-authentication', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('re-authenticates and retries once on a 401 for username-password auth', async () => {
+      const fetchFn = jest
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token-1' })) // initial authenticate()
+        .mockResolvedValueOnce(jsonResponse({ message: 'missing jwt' }, 401)) // first list attempt
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token-2' })) // re-authenticate()
+        .mockResolvedValueOnce(jsonResponse([{ name: 'folder-1' }])); // retried list attempt
+
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+      await client.authenticate();
+
+      const listPromise = client.listFolders();
+      await jest.advanceTimersByTimeAsync(500);
+      const folders = await listPromise;
+
+      expect(folders).toEqual([{ name: 'folder-1' }]);
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+      const retriedCall = fetchFn.mock.calls[3];
+      expect((retriedCall[1].headers as Record<string, string>).Authorization).toBe('Bearer jwt-token-2');
+    });
+
+    it('does not retry a second time if the retried request also 401s', async () => {
+      const fetchFn = jest
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token-1' }))
+        .mockResolvedValueOnce(jsonResponse({ message: 'missing jwt' }, 401))
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token-2' }))
+        .mockResolvedValueOnce(jsonResponse({ message: 'missing jwt' }, 401));
+
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+      await client.authenticate();
+
+      const listPromise = client.listFolders();
+      const assertion = expect(listPromise).rejects.toThrow(SftpgoApiError);
+      await jest.advanceTimersByTimeAsync(500);
+      await assertion;
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+    });
+
+    it('does not retry on 401 for api-key auth', async () => {
+      const fetchFn = jest.fn().mockResolvedValueOnce(jsonResponse({ message: 'invalid api key' }, 401));
+      const client = new SftpgoClient('https://sftpgo.example.com', apiKeyAuth, fetchFn);
+
+      await expect(client.listFolders()).rejects.toThrow(SftpgoApiError);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('listFolders / listGroups pagination', () => {
     it('follows pagination until a short page is returned', async () => {
       const page1 = Array.from({ length: 500 }, (_, i) => ({ name: `folder-${i}` }));
