@@ -1,11 +1,13 @@
 import { AuthConfig, LocalArtifact, RemoteArtifact } from './types';
 
 export type FetchFn = typeof fetch;
+export type DelayFn = (ms: number) => Promise<void>;
 
 const LIST_PAGE_LIMIT = 500;
 const REAUTH_RETRY_DELAY_MS = 300;
+const AUTH_DELAY_MS = 500;
 
-function delay(ms: number): Promise<void> {
+function realDelay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -36,6 +38,7 @@ export class SftpgoClient {
     private readonly serverUrl: string,
     private readonly auth: AuthConfig,
     private readonly fetchFn: FetchFn = fetch,
+    private readonly delayFn: DelayFn = realDelay,
   ) {}
 
   async authenticate(): Promise<void> {
@@ -66,6 +69,7 @@ export class SftpgoClient {
       );
     }
     this.token = accessToken;
+    await this.delayFn(AUTH_DELAY_MS);
   }
 
   private authHeader(): Record<string, string> {
@@ -95,7 +99,7 @@ export class SftpgoClient {
 
     if (response.status === 401 && allowReauth && this.auth.method === 'username-password') {
       await this.authenticate();
-      await delay(REAUTH_RETRY_DELAY_MS);
+      await this.delayFn(REAUTH_RETRY_DELAY_MS);
       return this.request<T>(method, urlPath, body, false);
     }
 

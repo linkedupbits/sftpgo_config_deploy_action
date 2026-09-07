@@ -15,11 +15,16 @@ function emptyResponse(status = 200): Response {
 const userPassAuth: AuthConfig = { method: 'username-password', username: 'admin', password: 'secret' };
 const apiKeyAuth: AuthConfig = { method: 'api-key', apiKey: 'the-key' };
 
+// SftpgoClient waits between re-authenticating and retrying a 401 (and briefly after every
+// authenticate()). Tests don't want to actually wait, so inject a no-op delay instead of relying
+// on jest fake timers, which is fragile to line up around every current and future await delayFn(...).
+async function noDelay(): Promise<void> {}
+
 describe('SftpgoClient', () => {
   describe('authenticate', () => {
     it('exchanges basic credentials for a bearer token', async () => {
       const fetchFn = jest.fn().mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token' }));
-      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn, noDelay);
 
       await client.authenticate();
 
@@ -85,14 +90,6 @@ describe('SftpgoClient', () => {
   });
 
   describe('401 re-authentication', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
     it('re-authenticates and retries once on a 401 for username-password auth', async () => {
       const fetchFn = jest
         .fn()
@@ -100,18 +97,20 @@ describe('SftpgoClient', () => {
         .mockResolvedValueOnce(jsonResponse({ message: 'missing jwt' }, 401)) // first list attempt
         .mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token-2' })) // re-authenticate()
         .mockResolvedValueOnce(jsonResponse([{ name: 'folder-1' }])); // retried list attempt
+      const delayFn = jest.fn(noDelay);
 
-      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn, delayFn);
       await client.authenticate();
 
-      const listPromise = client.listFolders();
-      await jest.advanceTimersByTimeAsync(500);
-      const folders = await listPromise;
+      const folders = await client.listFolders();
 
       expect(folders).toEqual([{ name: 'folder-1' }]);
       expect(fetchFn).toHaveBeenCalledTimes(4);
       const retriedCall = fetchFn.mock.calls[3];
       expect((retriedCall[1].headers as Record<string, string>).Authorization).toBe('Bearer jwt-token-2');
+      // delayFn is called after every successful authenticate() (initial + reauth) and once more
+      // before the retried request.
+      expect(delayFn.mock.calls).toEqual([[500], [500], [300]]);
     });
 
     it('does not retry a second time if the retried request also 401s', async () => {
@@ -122,13 +121,10 @@ describe('SftpgoClient', () => {
         .mockResolvedValueOnce(jsonResponse({ access_token: 'jwt-token-2' }))
         .mockResolvedValueOnce(jsonResponse({ message: 'missing jwt' }, 401));
 
-      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn);
+      const client = new SftpgoClient('https://sftpgo.example.com', userPassAuth, fetchFn, noDelay);
       await client.authenticate();
 
-      const listPromise = client.listFolders();
-      const assertion = expect(listPromise).rejects.toThrow(SftpgoApiError);
-      await jest.advanceTimersByTimeAsync(500);
-      await assertion;
+      await expect(client.listFolders()).rejects.toThrow(SftpgoApiError);
       expect(fetchFn).toHaveBeenCalledTimes(4);
     });
 
